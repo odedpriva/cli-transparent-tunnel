@@ -51,5 +51,4 @@ release:
     ## Thanks!
 
     Those were the changes on {{ .Tag }}!
-  prerelease: auto
-
+  
