@@ -22,6 +22,9 @@ func TestLoadConfig(t *testing.T) {
 }
 
 func TestLoadConfigErrorFlow(t *testing.T) {
+	if os.Getenv("CI") != "true" {
+		t.Skip("")
+	}
 	_, err := LoadConfig()
 	assert.ErrorIs(t, err, ErrConfigNotExist)
 }
