@@ -20,3 +20,15 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, config.KubeCtl.CliPath, "path")
 	assert.Equal(t, config.KubeCtl.EligibleSubCommands, []string{"create"})
 }
+
+func TestLoadConfigErrorFlow(t *testing.T) {
+	_, err := LoadConfig()
+	assert.ErrorIs(t, err, ErrConfigNotExist)
+}
+
+func TestLoadConfigErrorFlowCouldNotOpen(t *testing.T) {
+	dir, _ := os.Getwd()
+	os.Setenv("CTT_CONFIG", path.Join(dir, "..", "for-tests", "not-existing-file.yaml"))
+	_, err := LoadConfig()
+	assert.ErrorIs(t, err, ErrReadingConfig)
+}

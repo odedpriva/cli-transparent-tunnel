@@ -7,18 +7,33 @@ import (
 	"fmt"
 	"os"
 
+	"errors"
 	log "github.com/sirupsen/logrus"
 )
 
 func main() {
 
+	if len(os.Args) > 1 {
+		if os.Args[1] == "init" {
+			err := config.InitConfig()
+			if err != nil {
+				fmt.Printf("error setting up ctt config %s\n", err)
+				os.Exit(1)
+			}
+			os.Exit(0)
+		}
+	}
+
 	mylog := log.New()
 
 	c, err := config.LoadConfig()
 	if err != nil {
-		fmt.Errorf("%s", err)
-		os.Exit(1)
+		if errors.Is(err, config.ErrConfigNotExist) {
+			fmt.Println("ctt requires config file, have you run ctt init?")
+			os.Exit(1)
+		}
 	}
+
 	k := kubectl.NewKubeCtl(c.KubeCtl, mylog, os.Args)
 	mylog.SetLevel(c.LogLevel)
 
@@ -30,10 +45,10 @@ func main() {
 	errorChan := make(chan error)
 	var targetMachine string
 	if val, ok := tunnelConfigurations[appName]; ok {
-		targetMachine = val.TargetMachine
+		targetMachine = val.OriginServer
 		sshTunnel := tunnling.NewSSHTunnel(val.ExternalUserName, c.SshConfig, mylog)
-		sshTunnel.SetEndpoints(fmt.Sprintf("%s@%s", val.ExternalUserName, val.ExternalHostName),
-			fmt.Sprintf("%s:%s", val.TargetMachine, val.TargetPort),
+		sshTunnel.SetEndpoints(fmt.Sprintf("%s@%s", val.ExternalUserName, val.TunnelServer),
+			fmt.Sprintf("%s:%s", val.OriginServer, val.TargetPort),
 		)
 		go sshTunnel.Start(localAddressChan, errorChan)
 		select {

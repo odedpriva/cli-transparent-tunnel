@@ -1,11 +1,15 @@
 package config
 
 import (
+	"bufio"
 	"bytes"
 	"ctt/utils"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -13,11 +17,12 @@ import (
 	"github.com/spf13/viper"
 )
 
+var ErrConfigNotExist = errors.New("config not exist")
+var ErrReadingConfig = errors.New("error reading config")
+
 type TunnelConfiguration struct {
-	ExternalHostName string `mapstructure:"ssh-client-host-name"`
-	ExternalUserName string `mapstructure:"ssh-client-user-name"`
-	TargetMachine    string `mapstructure:"target-machine"`
-	TargetPort       string `mapstructure:"target-port"`
+	TunnelServer string `mapstructure:"ssh-tunnel-server"`
+	OriginServer string `mapstructure:"origin-server"`
 }
 
 type KubeCtl struct {
@@ -43,9 +48,11 @@ func LoadConfig() (*Config, error) {
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))
 	viper.AutomaticEnv()
 
-	loadConfigFile()
+	if err := loadConfigFile(); err != nil {
+		return nil, err
+	}
 
-	config := newConfig(viper.GetString("log_level"))
+	config := newConfig()
 
 	err := viper.Unmarshal(config)
 	if err != nil {
@@ -55,8 +62,50 @@ func LoadConfig() (*Config, error) {
 	return config, nil
 }
 
-func newConfig(logLevel string) *Config {
-	l, err := logrus.ParseLevel(logLevel)
+func InitConfig() error {
+	var err error
+	configFileLocation := path.Join(utils.GetHomeDir(), ".ctt/config.yaml")
+	if os.Getenv("CTT_CONFIG") != "" {
+		configFileLocation = os.Getenv("CTT_CONFIG")
+	}
+
+	viper.SetConfigFile(configFileLocation)
+
+	//c := newConfig()
+	sshKeyPath, err := getUserInput("which ssh-key to use?", path.Join(utils.GetHomeDir(), ".ssh/id_rsa"))
+	if err != nil {
+		return err
+	}
+	viper.Set("ssh-config.key-path", sshKeyPath)
+	kubectlPath, err := exec.LookPath("kubectl")
+	if err != nil {
+		kubectlPath = ""
+	}
+	kubectlPath, err = getUserInput("which kubectl to use?", kubectlPath)
+	if err != nil {
+		return err
+	}
+
+	viper.Set("kubectl.path", sshKeyPath)
+	viper.Set("kubectl.eligible-subcommands", kubectlSupportedSubCommands())
+	viper.Set("kubectl.tunnel-configurations", map[string]TunnelConfiguration{"example": exampleTunnelConfiguration()})
+
+	err = os.MkdirAll(filepath.Dir(configFileLocation), os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	err = viper.WriteConfig()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func newConfig() *Config {
+
+	l, err := logrus.ParseLevel(viper.GetString("log_level"))
 	if err != nil {
 		l = logrus.InfoLevel
 	}
@@ -70,36 +119,79 @@ func newConfig(logLevel string) *Config {
 	}
 }
 
-func loadConfigFile() {
+func loadConfigFile() error {
 	viper.SetConfigType("yaml")
 
 	if val := os.Getenv("CTT_CONFIG"); val != "" {
-		readConfigFile(val)
-		return
-	}
-
-	if utils.IsFileExists(path.Join(utils.GetCWD(), "config.yaml")) {
-		readConfigFile(path.Join(utils.GetCWD(), "config.yaml"))
-		return
+		return readConfigFile(val)
 	}
 
 	if utils.IsFileExists(path.Join(utils.GetHomeDir(), ".ctt/config.yaml")) {
-		readConfigFile(path.Join(utils.GetHomeDir(), ".ctt/config.yaml"))
-		return
+		return readConfigFile(path.Join(utils.GetHomeDir(), ".ctt/config.yaml"))
 	}
+
+	return ErrConfigNotExist
 
 }
 
-func readConfigFile(configLocation string) {
+func readConfigFile(configLocation string) error {
 
 	con, err := os.ReadFile(configLocation)
 	if err != nil {
-		fmt.Errorf("error reading file %s %s", configLocation, err)
-		os.Exit(1)
+		return fmt.Errorf("%w %s", ErrReadingConfig, err)
 	}
 	err = viper.ReadConfig(bytes.NewBuffer(con))
 	if err != nil {
-		fmt.Errorf("error reading file %s %s", configLocation, err)
-		os.Exit(1)
+		return fmt.Errorf("%w %s", ErrReadingConfig, err)
+	}
+
+	return nil
+}
+
+func getUserInput(param, defaultValue string) (string, error) {
+	fmt.Printf("%s (%s): ", param, defaultValue)
+	reader := bufio.NewReader(os.Stdin)
+	// ReadString will block until the delimiter is entered
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return "", fmt.Errorf("error occurred while reading input. Please try again %s", err)
+	}
+
+	if strings.TrimSuffix(input, "\n") == "" {
+		return defaultValue, nil
+	}
+	return input, nil
+}
+
+func kubectlSupportedSubCommands() []string {
+	return []string{
+		"create",
+		"expose",
+		"run",
+		"set",
+		"explain",
+		"get",
+		"delete",
+		"rollout",
+		"scale",
+		"certificate",
+		"cluster-info",
+		"cordon",
+		"uncordon",
+		"drain",
+		"taint",
+		"describe",
+		"logs",
+		"auth",
+		"apply",
+		"patch",
+		"replace",
+	}
+}
+
+func exampleTunnelConfiguration() TunnelConfiguration {
+	return TunnelConfiguration{
+		TunnelServer: "<my-user>@<my-server.com>",
+		OriginServer: "<k8s-api-endpoint>:<port>",
 	}
 }
