@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bufio"
 	"bytes"
 	"ctt/utils"
 	"errors"
@@ -21,14 +20,25 @@ var ErrConfigNotExist = errors.New("config not exist")
 var ErrReadingConfig = errors.New("error reading config")
 
 type TunnelConfiguration struct {
-	TunnelServer string `mapstructure:"ssh-tunnel-server"`
-	OriginServer string `mapstructure:"origin-server"`
+	TunnelServer string `yaml:"ssh-tunnel-server" mapstructure:"ssh-tunnel-server"`
+	OriginServer string `yaml:"origin-server" mapstructure:"origin-server"`
+	Name         string `yaml:"name" mapstructure:"name"`
+}
+
+//IsTunnelConfigurationExist return true and configuration if exists or TunnelConfiguration{} false
+func IsTunnelConfigurationExist(name string, t []TunnelConfiguration) (TunnelConfiguration, bool) {
+	for i := range t {
+		if t[i].Name == name {
+			return t[i], true
+		}
+	}
+	return TunnelConfiguration{}, false
 }
 
 type KubeCtl struct {
-	CliPath              string                         `mapstructure:"path"`
-	TunnelConfigurations map[string]TunnelConfiguration `mapstructure:"tunnel-configurations"`
-	EligibleSubCommands  []string                       `mapstructure:"eligible-subcommands"`
+	CliPath              string                `mapstructure:"path"`
+	TunnelConfigurations []TunnelConfiguration `mapstructure:"tunnel-configurations"`
+	EligibleSubCommands  []string              `mapstructure:"eligible-subcommands"`
 }
 
 type SshConfig struct {
@@ -62,17 +72,36 @@ func LoadConfig() (*Config, error) {
 	return config, nil
 }
 
-func InitConfig() error {
+//InitConfig init config file in standard location
+func InitConfig() (string, error) {
 	var err error
 	configFileLocation := path.Join(utils.GetHomeDir(), ".ctt/config.yaml")
 	if os.Getenv("CTT_CONFIG") != "" {
 		configFileLocation = os.Getenv("CTT_CONFIG")
 	}
-
 	viper.SetConfigFile(configFileLocation)
 
-	//c := newConfig()
-	sshKeyPath, err := getUserInput("which ssh-key to use?", path.Join(utils.GetHomeDir(), ".ssh/id_rsa"))
+	err = setConfiguration()
+	if err != nil {
+		return "", err
+	}
+
+	err = os.MkdirAll(filepath.Dir(configFileLocation), os.ModePerm)
+	if err != nil {
+		return "", err
+	}
+
+	err = viper.WriteConfig()
+	if err != nil {
+		return "", err
+	}
+
+	return viper.ConfigFileUsed(), nil
+}
+
+func setConfiguration() error {
+
+	sshKeyPath, err := getUserInputWithDefault("which ssh-key to use?", path.Join(utils.GetHomeDir(), ".ssh/id_rsa"))
 	if err != nil {
 		return err
 	}
@@ -81,25 +110,14 @@ func InitConfig() error {
 	if err != nil {
 		kubectlPath = ""
 	}
-	kubectlPath, err = getUserInput("which kubectl to use?", kubectlPath)
+	kubectlPath, err = getUserInputWithDefault("which kubectl to use?", kubectlPath)
 	if err != nil {
 		return err
 	}
 
-	viper.Set("kubectl.path", sshKeyPath)
+	viper.Set("kubectl.path", kubectlPath)
 	viper.Set("kubectl.eligible-subcommands", kubectlSupportedSubCommands())
-	viper.Set("kubectl.tunnel-configurations", map[string]TunnelConfiguration{"example": exampleTunnelConfiguration()})
-
-	err = os.MkdirAll(filepath.Dir(configFileLocation), os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	err = viper.WriteConfig()
-	if err != nil {
-		return err
-	}
-
+	viper.Set("kubectl.tunnel-configurations", []TunnelConfiguration{exampleTunnelConfiguration()})
 	return nil
 }
 
@@ -112,7 +130,7 @@ func newConfig() *Config {
 	return &Config{
 		SshConfig: &SshConfig{},
 		KubeCtl: &KubeCtl{
-			TunnelConfigurations: map[string]TunnelConfiguration{},
+			TunnelConfigurations: []TunnelConfiguration{},
 		},
 		LogLevel:    l,
 		CommandName: "kubectl",
@@ -148,16 +166,11 @@ func readConfigFile(configLocation string) error {
 	return nil
 }
 
-func getUserInput(param, defaultValue string) (string, error) {
+func getUserInputWithDefault(param, defaultValue string) (string, error) {
 	fmt.Printf("%s (%s): ", param, defaultValue)
-	reader := bufio.NewReader(os.Stdin)
-	// ReadString will block until the delimiter is entered
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		return "", fmt.Errorf("error occurred while reading input. Please try again %s", err)
-	}
-
-	if strings.TrimSuffix(input, "\n") == "" {
+	var input string
+	fmt.Scanln(&input)
+	if input == "" {
 		return defaultValue, nil
 	}
 	return input, nil
@@ -193,5 +206,6 @@ func exampleTunnelConfiguration() TunnelConfiguration {
 	return TunnelConfiguration{
 		TunnelServer: "<my-user>@<my-server.com>",
 		OriginServer: "<k8s-api-endpoint>:<port>",
+		Name:         "<configuration name>",
 	}
 }

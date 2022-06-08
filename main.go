@@ -3,6 +3,7 @@ package main
 import (
 	"ctt/config"
 	"ctt/kubectl"
+	"ctt/mytypes"
 	"ctt/tunnling"
 	"fmt"
 	"os"
@@ -15,11 +16,12 @@ func main() {
 
 	if len(os.Args) > 1 {
 		if os.Args[1] == "init" {
-			err := config.InitConfig()
+			file, err := config.InitConfig()
 			if err != nil {
 				fmt.Printf("error setting up ctt config %s\n", err)
 				os.Exit(1)
 			}
+			fmt.Printf("check config files: %s and update tunnel configurations\n", file)
 			os.Exit(0)
 		}
 	}
@@ -33,7 +35,6 @@ func main() {
 			os.Exit(1)
 		}
 	}
-
 	k := kubectl.NewKubeCtl(c.KubeCtl, mylog, os.Args)
 	mylog.SetLevel(c.LogLevel)
 
@@ -41,21 +42,21 @@ func main() {
 	tunnelConfigurations := c.KubeCtl.TunnelConfigurations
 
 	var localAddress string
-	localAddressChan := make(chan string)
-	errorChan := make(chan error)
 	var targetMachine string
-	if val, ok := tunnelConfigurations[appName]; ok {
-		targetMachine = val.OriginServer
-		sshTunnel := tunnling.NewSSHTunnel(val.ExternalUserName, c.SshConfig, mylog)
-		sshTunnel.SetEndpoints(fmt.Sprintf("%s@%s", val.ExternalUserName, val.TunnelServer),
-			fmt.Sprintf("%s:%s", val.OriginServer, val.TargetPort),
-		)
-		go sshTunnel.Start(localAddressChan, errorChan)
-		select {
-		case err = <-errorChan:
+	if val, ok := config.IsTunnelConfigurationExist(appName, tunnelConfigurations); ok {
+		sshTunnelServer := mytypes.ConvertToEndpointWithDefault(val.TunnelServer, "ssh")
+		originEndpoint := mytypes.ConvertToEndpointWithDefault(val.OriginServer, "https")
+		targetMachine = originEndpoint.Host
+		sshTunnel, err := tunnling.NewSSHTunnel(c.SshConfig, mylog)
+		if err != nil {
 			fmt.Errorf("failed creating local tunnel listener %s", err)
 			os.Exit(1)
-		case localAddress = <-localAddressChan:
+		}
+		go sshTunnel.WithUser(sshTunnelServer.User).Start(sshTunnelServer, originEndpoint)
+		localAddress, err = sshTunnel.Wait()
+		if err != nil {
+			fmt.Errorf("failed creating local tunnel listener %s", err)
+			os.Exit(1)
 		}
 	}
 	output, err := k.RunCommand(localAddress, targetMachine)
