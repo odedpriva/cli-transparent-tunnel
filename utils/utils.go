@@ -1,13 +1,30 @@
 package utils
 
 import (
-	"fmt"
+	"errors"
 	"os"
 )
 
-func HandleError(err error) {
-	if err != nil {
-		fmt.Errorf("%s", err)
-		os.Exit(1)
+func IsFileExists(name string) bool {
+	_, err := os.Stat(name)
+	if err == nil {
+		return true
 	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+	return false
+}
+func GetCWD() string {
+	path, err := os.Getwd()
+	if err != nil {
+	}
+	return path
+}
+
+func GetHomeDir() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+	}
+	return homeDir
 }
