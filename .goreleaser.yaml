@@ -1,0 +1,60 @@
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    binary: ctt
+    id: ctt
+    ldflags:
+      - -s -w -X github.com/odedpriva/cli-transparent-tunnel/version.GitVersion={{.Version}} -X github.com/odedpriva/cli-transparent-tunnel/version.GitCommit={{.Commit}}
+
+archives:
+  - id: ctt
+    replacements:
+      darwin: Darwin
+#      linux: Linux
+#      windows: Windows
+#      amd64: 64-bit
+#      386: 32-bit
+
+checksum:
+  algorithm: sha256
+  name_template: 'checksums.txt'
+
+signs:
+  - artifacts: checksum
+
+brews:
+  - name: ctt
+    homepage: https://github.com/odedpriva/cli-transparent-tunnel
+    tap:
+      owner: odedpriva
+      name: homebrew-ctt
+      token: "{{ .Env.GITHUB_TOKEN }}"
+
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+release:
+  header: |
+    ## Thanks!
+
+    Those were the changes on {{ .Tag }}!
+  prerelease: auto
+  ids:
+    - ctt
+
+
