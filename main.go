@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
+	command_runner "github.com/odedpriva/cli-transparent-tunnel/command-runner"
+	command_tunneler "github.com/odedpriva/cli-transparent-tunnel/command-tunneler"
+	"github.com/odedpriva/cli-transparent-tunnel/command-tunneler/commands/kubectl"
 	"github.com/odedpriva/cli-transparent-tunnel/config"
-	"github.com/odedpriva/cli-transparent-tunnel/kubectl"
-	"github.com/odedpriva/cli-transparent-tunnel/mytypes"
-	"github.com/odedpriva/cli-transparent-tunnel/tunnling"
+	"github.com/odedpriva/cli-transparent-tunnel/service"
 	"github.com/odedpriva/cli-transparent-tunnel/version"
 	"os"
 
@@ -14,9 +15,10 @@ import (
 )
 
 func main() {
+	args := os.Args
 
-	if len(os.Args) > 1 {
-		switch os.Args[1] {
+	if len(args) > 1 {
+		switch args[1] {
 		case "ctt-init":
 			file, err := config.InitConfig()
 			if err != nil {
@@ -40,33 +42,52 @@ func main() {
 			os.Exit(1)
 		}
 	}
-	k := kubectl.NewKubeCtl(c.KubeCtl, mylog, os.Args)
 	mylog.SetLevel(c.LogLevel)
-
-	appName := k.GetTunnelConfiguration()
-	tunnelConfigurations := c.KubeCtl.TunnelConfigurations
-
-	var localAddress string
-	var targetMachine string
-	if val, ok := config.IsTunnelConfigurationExist(appName, tunnelConfigurations); ok {
-		sshTunnelServer := mytypes.ConvertToEndpointWithDefault(val.TunnelServer, "ssh")
-		originEndpoint := mytypes.ConvertToEndpointWithDefault(val.OriginServer, "https")
-		targetMachine = originEndpoint.Host
-		sshTunnel, err := tunnling.NewSSHTunnel(c.SshConfig, mylog)
-		if err != nil {
-			fmt.Printf("failed creating local tunnel listener %s", err)
-			os.Exit(1)
-		}
-		go sshTunnel.WithUser(sshTunnelServer.User).Start(sshTunnelServer, originEndpoint)
-		localAddress, err = sshTunnel.Wait()
-		if err != nil {
-			fmt.Printf("failed creating local tunnel listener %s", err)
-			os.Exit(1)
-		}
-	}
-	output, err := k.RunCommand(localAddress, targetMachine)
-	fmt.Printf("%s", output)
+	s, err := serviceFactory(c, mylog, args)
 	if err != nil {
+		fmt.Println(err)
 		os.Exit(1)
 	}
+	s.Run()
+
+}
+
+func serviceFactory(conf *config.Config, log *log.Logger, args []string) (*service.Service, error) {
+
+	command, commandLineArgs, err := parseOsArgs(args)
+	if err != nil {
+		return nil, err
+	}
+	var t command_tunneler.TunnelerCommand
+	c := command_runner.NewCommandRunnerImpl(log)
+	switch command {
+	case "kubectl":
+		t, err = kubectl.NewKubeCtl(conf.KubeCtl, log, commandLineArgs)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		fmt.Printf("does not support %s as command\n", command)
+		os.Exit(1)
+	}
+
+	return &service.Service{
+		TunnelerCommand: t,
+		CommandRunner:   c,
+		Log:             log,
+		SshConfig:       conf.SshConfig,
+	}, nil
+}
+
+func parseOsArgs(osArgs []string) (command string, args []string, err error) {
+
+	switch numberOfArgs := len(osArgs); {
+	case numberOfArgs == 0 || numberOfArgs == 1:
+		return command, args, fmt.Errorf("ctt expects subcommand")
+	case numberOfArgs == 2:
+		return osArgs[1], []string{}, nil
+	default:
+		return osArgs[1], osArgs[2:], nil
+	}
+
 }

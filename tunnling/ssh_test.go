@@ -10,7 +10,7 @@ import (
 
 func Test_privateKeyFile(t *testing.T) {
 	dir, _ := os.Getwd()
-	testAssets := path.Join(dir, "..", "for-tests")
+	testAssets := path.Join(dir, "for-tests")
 	type args struct {
 		file string
 	}

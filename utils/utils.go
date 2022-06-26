@@ -28,3 +28,16 @@ func GetHomeDir() string {
 	}
 	return homeDir
 }
+
+func AssertError(wantError bool, err error) bool {
+	if wantError {
+		if err == nil {
+			return false
+		}
+	} else {
+		if err != nil {
+			return false
+		}
+	}
+	return true
+}
