@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"os"
+	"strings"
 )
 
 func IsFileExists(name string) bool {
@@ -40,4 +41,16 @@ func AssertError(wantError bool, err error) bool {
 		}
 	}
 	return true
+}
+
+func SShHostSplit(hostname string) (user, host string) {
+	var parts []string
+	switch parts = strings.Split(hostname, "@"); {
+	case len(parts) == 0:
+		return "", parts[0]
+	case len(parts) == 1:
+		return parts[0], parts[1]
+	default:
+		return strings.Join(parts[0:len(parts)-1], "@"), parts[len(parts)-1]
+	}
 }

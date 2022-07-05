@@ -1,79 +1,86 @@
-package tunnling
+package network_tunnler
 
 import (
 	"errors"
 	"fmt"
-	"github.com/odedpriva/cli-transparent-tunnel/config"
-	"github.com/odedpriva/cli-transparent-tunnel/mytypes"
-	"github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ssh"
+	"github.com/odedpriva/cli-transparent-tunnel/logging"
 	"io"
 	"io/ioutil"
 	"net"
+
+	"github.com/odedpriva/cli-transparent-tunnel/mytypes"
+	"golang.org/x/crypto/ssh"
 )
 
 type SSHTunnel struct {
-	Server *mytypes.Endpoint
-	Remote *mytypes.Endpoint
+	Server *mytypes.ApplicationEndpoint
+	Remote *mytypes.ApplicationEndpoint
 	Config *ssh.ClientConfig
-	Log    *logrus.Logger
 
+	log         *logging.Logging
 	AddressChan chan string
 	ErrChan     chan error
 }
 
-func NewSSHTunnel(sshConfig *config.SshConfig, logger *logrus.Logger) (*SSHTunnel, error) {
+type NetworkTunneler interface {
+	Start(server *mytypes.NetworkEndpoint, originServer string)
+	Wait() (string, error)
+}
+
+func NewSSHTunnel(c *mytypes.SshConfig) (*SSHTunnel, error) {
 	var auth ssh.AuthMethod
 	var err error
-	if sshConfig.KeyPath == "" {
+	log := logging.GetLogger()
+	if c.KeyPath == "" {
 		return nil, fmt.Errorf("no auth method for ssh")
 	}
-	logger.Debugf("using ssh key %s", sshConfig.KeyPath)
-	auth, err = privateKeyFile(sshConfig.KeyPath)
+	log.Debugf("using ssh key %s", c.KeyPath)
+	auth, err = privateKeyFile(c.KeyPath)
 	if err != nil {
 		return nil, err
 	}
 	return &SSHTunnel{
 		Config: &ssh.ClientConfig{
+			User: c.User,
 			Auth: []ssh.AuthMethod{auth},
 			HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 				return nil
 			},
 		},
-		Log:         logger,
+		log:         log,
 		AddressChan: make(chan string),
 		ErrChan:     make(chan error),
 	}, nil
 }
 
-func (t *SSHTunnel) Start(sshServer, originServer *mytypes.Endpoint) {
+func (t *SSHTunnel) Start(server *mytypes.NetworkEndpoint, originServer string) {
 	var err error
 	var listener net.Listener
 	var conn net.Conn
 
-	localEndpoint := &mytypes.Endpoint{
+	localEndpoint := &mytypes.ApplicationEndpoint{
 		Host: "localhost",
 	}
+
+	t.log.Debugf("starting tcp lisener on %s", localEndpoint.String())
 
 	listener, err = net.Listen("tcp", localEndpoint.String())
 	if err != nil {
 		t.ErrChan <- err
 	}
-	defer listener.Close()
+	defer func() {
+		err = listener.Close()
+		t.log.Errorf("%s\n", err)
+	}()
 	t.AddressChan <- listener.Addr().String()
 	for {
 		conn, err = listener.Accept()
 		if err != nil {
 			t.ErrChan <- err
 		}
-		t.Log.Debug("accepted connection")
-		go t.forward(conn, sshServer, originServer)
+		t.log.Debug("accepted connection")
+		go t.forward(conn, server, originServer)
 	}
-}
-
-func (t *SSHTunnel) WithUser(u string) *SSHTunnel {
-	t.Config.User = u
-	return t
 }
 
 func (t *SSHTunnel) Wait() (string, error) {
@@ -85,28 +92,28 @@ func (t *SSHTunnel) Wait() (string, error) {
 	}
 }
 
-func (t *SSHTunnel) forward(localConn net.Conn, sshServer, originServer *mytypes.Endpoint) {
-	t.Log.Debugf("forwording connection on ssh tunnel %s", sshServer.String())
-	t.Log.Debugf("using ssh configuration %+v", t.Config)
+func (t *SSHTunnel) forward(localConn net.Conn, sshServer *mytypes.NetworkEndpoint, originServer string) {
+	t.log.Debugf("forwording connection on ssh tunnel %s", sshServer.String())
+	t.log.Debugf("using ssh configuration %+v", t.Config)
 	serverConn, err := ssh.Dial("tcp", sshServer.String(), t.Config)
 	if err != nil {
-		t.Log.Errorf("server dial error: %s", err)
+		t.log.Errorf("server dial error: %s", err)
 		return
 	}
-	t.Log.Debugf("connected to %s (1 of 2)\n", sshServer.String())
-	remoteConn, err := serverConn.Dial("tcp", originServer.String())
+	t.log.Debugf("connected to %s (1 of 2)\n", sshServer.String())
+	remoteConn, err := serverConn.Dial("tcp", originServer)
 	if err != nil {
-		t.Log.Errorf("remote dial error: %s", err)
+		t.log.Errorf("remote dial error: %s", err)
 		return
 	}
-	t.Log.Debugf("connected to %s (2 of 2)\n", originServer.String())
+	t.log.Debugf("connected to %s (2 of 2)\n", originServer)
 	copyConn := func(writer, reader net.Conn) {
 		_, err := io.Copy(writer, reader)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				t.Log.Infof("io.Copy error: %s", err)
+				t.log.Infof("io.Copy error: %s", err)
 			}
-			t.Log.Errorf("io.Copy error: %s", err)
+			t.log.Errorf("io.Copy error: %s", err)
 		}
 	}
 	go copyConn(localConn, remoteConn)
