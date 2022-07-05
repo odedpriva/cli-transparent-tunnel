@@ -2,47 +2,91 @@ package mytypes
 
 import (
 	"fmt"
+	"os/user"
 	"strconv"
 	"strings"
 )
 
-type Endpoint struct {
+type ApplicationEndpoint struct {
+	Host string
+	Port int
+}
+
+func ConvertTApplicationEndpoint(s string) *ApplicationEndpoint {
+	host, port := "", 0
+
+	parts := strings.Split(s, ":")
+	switch len(parts) {
+	case 1:
+		host = parts[0]
+		port = 0
+	case 2:
+		host = parts[0]
+		port, _ = strconv.Atoi(parts[1])
+	}
+
+	return &ApplicationEndpoint{
+		Host: host,
+		Port: port,
+	}
+}
+
+func (e *ApplicationEndpoint) String() string {
+	return fmt.Sprintf("%s:%d", e.Host, e.Port)
+}
+
+type NetworkEndpoint struct {
 	Host string
 	User string
 	Port int
 }
 
-func (e *Endpoint) String() string {
-	return fmt.Sprintf("%s:%d", e.Host, e.Port)
+func (s *NetworkEndpoint) String() string {
+	return fmt.Sprintf("%s:%d", s.Host, s.Port)
 }
 
-func ConvertToEndpoint(s string) *Endpoint {
-	endpoint := &Endpoint{
-		Host: s,
+func ConvertToSshEndpoint(s string) *NetworkEndpoint {
+	host, userToUse, port := "", "", 0
+
+	parts := strings.Split(s, "@")
+	switch len(parts) {
+	case 1:
+		userToUse = func() string { username, _ := user.Current(); return username.Name }()
+		host = parts[0]
+	case 2:
+		userToUse = parts[0]
+		host = parts[1]
+	default:
+		userToUse = strings.Join(parts[1:len(parts)-1], "@")
+		host = parts[1]
 	}
-	if parts := strings.Split(endpoint.Host, "@"); len(parts) > 1 {
-		endpoint.User = strings.Join(parts[0:len(parts)-1], "@")
-		endpoint.Host = parts[len(parts)-1]
+
+	parts = strings.Split(host, ":")
+	switch len(parts) {
+	case 1:
+		host = parts[0]
+		port = 22
+	case 2:
+		host = parts[0]
+		port, _ = strconv.Atoi(parts[1])
 	}
-	if parts := strings.Split(endpoint.Host, ":"); len(parts) > 1 {
-		endpoint.Host = parts[0]
-		endpoint.Port, _ = strconv.Atoi(parts[1])
+
+	return &NetworkEndpoint{
+		Host: host,
+		User: userToUse,
+		Port: port,
 	}
-	return endpoint
 }
 
-func ConvertToEndpointWithDefault(s string, proto string) *Endpoint {
-	e := ConvertToEndpoint(s)
-	if e.Port == 0 {
-		switch proto {
-		case "http":
-			e.Port = 80
-		case "https":
-			e.Port = 443
-		case "ssh":
-			e.Port = 22
-		}
-	}
+type Command struct {
+	CliPath      string
+	HostFlags    []string
+	PortFlags    []string
+	AddressFlags []string
+	SNIFlags     []string
+}
 
-	return e
+type SshConfig struct {
+	KeyPath string
+	User    string
 }

@@ -1,0 +1,27 @@
+commands-configuration:
+  redis-cli:
+    path: /usr/local/bin/redis-cli
+    flags:
+      host:
+        - -h
+      port:
+        - -p
+      sni:
+        - --sni
+  psql:
+    path: /usr/local/bin/psql
+    flags:
+      host:
+        - --host
+        - -h
+      port:
+        - -p
+        - --port
+  kubectl:
+    path: /usr/local/bin/kubectl
+    flags:
+      address:
+        - --server
+        - -s
+      sni:
+        - --tls-server-name

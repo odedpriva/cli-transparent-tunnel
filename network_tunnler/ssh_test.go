@@ -1,4 +1,4 @@
-package tunnling
+package network_tunnler
 
 import (
 	"github.com/stretchr/testify/assert"

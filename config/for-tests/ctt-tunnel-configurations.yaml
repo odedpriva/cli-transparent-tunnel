@@ -1,0 +1,21 @@
+configurations:
+  redis-cli:
+    - ssh-tunnel-server: linuxserver.io@localhost:2222
+      name: redis-eu
+      origin-server: 192.168.68.109:53077
+    - ssh-tunnel-server: linuxserver.io@localhost:2222
+      name: redis-us
+      origin-server: 192.168.68.109:53077
+  psql:
+    - ssh-tunnel-server: linuxserver.io@localhost:2222
+      origin-server: 192.168.68.109:53077
+      name: psql-eu
+    - ssh-tunnel-server: linuxserver.io@localhost:2222
+      origin-server: 192.168.68.109:53077
+      name: psql-us
+  kubectl:
+    - ssh-tunnel-server: linuxserver.io@localhost:2222
+      origin-server: 192.168.68.109:53077
+      name: kind-ctt
+ssh-config:
+  key-path: /Users/odedpriva/playground/ctt/for-tests/scripts/id_rsa

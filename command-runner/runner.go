@@ -2,7 +2,7 @@ package command_runner
 
 import (
 	"errors"
-	"github.com/sirupsen/logrus"
+	"github.com/odedpriva/cli-transparent-tunnel/logging"
 	"io"
 	"log"
 	"os"
@@ -13,10 +13,11 @@ type CommandRunner interface {
 	RunCommand(command string, args []string)
 }
 type CommandRunnerImpl struct {
-	log *logrus.Logger
+	log *logging.Logging
 }
 
-func NewCommandRunnerImpl(log *logrus.Logger) *CommandRunnerImpl {
+func NewCommandRunnerImpl() *CommandRunnerImpl {
+	log := logging.GetLogger()
 	return &CommandRunnerImpl{log: log}
 }
 
