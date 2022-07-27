@@ -2,6 +2,11 @@ package tunnel
 
 import (
 	"fmt"
+	"os"
+
+	"github.com/pkg/errors"
+	"github.com/urfave/cli/v2"
+
 	command_runner "github.com/odedpriva/cli-transparent-tunnel/command-runner"
 	"github.com/odedpriva/cli-transparent-tunnel/command-tunneler/commands/generic_command"
 	"github.com/odedpriva/cli-transparent-tunnel/config"
@@ -10,8 +15,6 @@ import (
 	"github.com/odedpriva/cli-transparent-tunnel/service"
 	"github.com/odedpriva/cli-transparent-tunnel/service/convertor"
 	args_utils "github.com/odedpriva/cli-transparent-tunnel/utils/args-utils"
-	"github.com/urfave/cli/v2"
-	"os"
 )
 
 type TunnelCmd struct {
@@ -58,20 +61,13 @@ func (c *TunnelCmd) runCommand(*cli.Context) error {
 	commandRunner := command_runner.NewCommandRunnerImpl()
 	tunneler, err := network_tunnler.NewSSHTunnel(serviceInput.SshConfig)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return errors.Wrap(err, "failed to create new SSH tunnel")
 	}
 	myService := service.NewService(commandTunnel, commandRunner, tunneler)
-	err = myService.Run(serviceInput)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	return nil
+	return myService.Run(serviceInput)
 }
 
-func newCommand(config config.Cliconfig) *mytypes.Command {
+func newCommand(config config.CliConfig) *mytypes.Command {
 	return &mytypes.Command{
 		CliPath:      config.CliPath,
 		HostFlags:    config.FlagsConfig.Host,

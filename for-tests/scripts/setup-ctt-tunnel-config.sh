@@ -19,6 +19,5 @@ export SSH_PRIVATE_KEY_PATH="${SSH_PRIVATE_KEY_PATH}"
 export K8S_ENDPOINT=${LOCAL_IP}:$(docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}}{{(index $conf 0).HostPort}} {{end}}' "${KIND_CONTAINER_NAME}")
 export K8S_CLUSTER_NAME=${K8S_CONTEXT_NAME}
 
-
-LOG INFO templating ctt config file to "${TEST_CONFIG_DIR}/ctt-config.yaml"
-${GO_TEMPLATE} -f "${CURRENT_DIR}/ctt-config.yaml.tpl" > "${TEST_CONFIG_DIR}/ctt-config.yaml"
+LOG INFO templating ctt tunnel config file to "${TEST_CONFIG_DIR}/ctt-tunnel-configuration.yaml"
+${GO_TEMPLATE} -f "${CURRENT_DIR}/ctt-tunnel-configuration.yaml.tpl" > "${TEST_CONFIG_DIR}/ctt-tunnel-configuration.yaml"

@@ -23,7 +23,7 @@ func TestConvertImpl_validateConfig(t *testing.T) {
 			args: args{
 				commandName: "test",
 				config: &config.Config{
-					CliConfigurations: map[string]config.Cliconfig{
+					CliConfigurations: map[string]config.CliConfig{
 						"test": {
 							CliPath:     "/usr/bin/env",
 							FlagsConfig: config.FlagsConfig{},
@@ -33,7 +33,7 @@ func TestConvertImpl_validateConfig(t *testing.T) {
 						"test": {},
 					},
 					SSHConfigurations: &config.SshConfig{},
-					LogLevel:          0,
+					//LogLevel:          0,
 				},
 			},
 			wantErr: false,

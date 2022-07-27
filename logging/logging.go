@@ -1,8 +1,9 @@
 package logging
 
 import (
-	"github.com/sirupsen/logrus"
 	"sync"
+
+	"github.com/sirupsen/logrus"
 )
 
 type Logging struct {

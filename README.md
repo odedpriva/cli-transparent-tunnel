@@ -66,6 +66,14 @@ commands-configuration:
         - -s
       sni:
         - --tls-server-name
+  oc:
+    path: /usr/local/bin/oc
+    flags:
+      address:
+        - --server
+        - -s
+      sni:
+        - --tls-server-name
 ```
 
 In theory, `ctt` should support any cli that allows passing endpoint using a flag.   
@@ -85,6 +93,10 @@ configurations:
     - ssh-tunnel-server: my-user@us-bastion:22
       origin-server: k8s:443
       name: k8s-us
+  oc:
+    - ssh-tunnel-server: my-user@us-bastion:22
+      origin-server: k8s:443
+      name: oc-conf
 ssh-config:
   key-path: ~/ssh/id_rsa
 ```

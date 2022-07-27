@@ -25,3 +25,11 @@ commands-configuration:
         - -s
       sni:
         - --tls-server-name
+  oc:
+     path: /usr/local/bin/oc
+     flags:
+       address:
+         - --server
+         - -s
+       sni:
+         - --tls-server-name

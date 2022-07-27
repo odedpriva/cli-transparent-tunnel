@@ -2,14 +2,14 @@ package config
 
 import (
 	"fmt"
-	"github.com/odedpriva/cli-transparent-tunnel/utils"
-	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/require"
 	"os"
 	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/odedpriva/cli-transparent-tunnel/utils"
 )
 
 func TestLoadConfigV2(t *testing.T) {
@@ -23,8 +23,8 @@ func TestLoadConfigV2(t *testing.T) {
 		{
 			name: "happy-flow",
 			want: &Config{
-				LogLevel: logrus.InfoLevel,
-				CliConfigurations: map[string]Cliconfig{
+				//LogLevel: logrus.InfoLevel,
+				CliConfigurations: map[string]CliConfig{
 					"redis-cli": {
 						CliPath: "/usr/local/bin/redis-cli",
 						FlagsConfig: FlagsConfig{
@@ -42,6 +42,13 @@ func TestLoadConfigV2(t *testing.T) {
 					},
 					"kubectl": {
 						CliPath: "/usr/local/bin/kubectl",
+						FlagsConfig: FlagsConfig{
+							Address: []string{"--server", "-s"},
+							SNI:     []string{"--tls-server-name"},
+						},
+					},
+					"oc": {
+						CliPath: "/usr/local/bin/oc",
 						FlagsConfig: FlagsConfig{
 							Address: []string{"--server", "-s"},
 							SNI:     []string{"--tls-server-name"},
@@ -80,9 +87,16 @@ func TestLoadConfigV2(t *testing.T) {
 							Name:         "kind-ctt",
 						},
 					},
+					"oc": {
+						{
+							TunnelServer: "linuxserver.io@localhost:2222",
+							OriginServer: "192.168.68.109:53077",
+							Name:         "oc-ctt",
+						},
+					},
 				},
 				SSHConfigurations: &SshConfig{
-					KeyPath: "/Users/odedpriva/playground/ctt/for-tests/scripts/id_rsa",
+					KeyPath: "for-tests/scripts/id_rsa",
 				},
 			},
 			environmentToSet: map[string]string{
@@ -94,8 +108,8 @@ func TestLoadConfigV2(t *testing.T) {
 		{
 			name: "",
 			want: &Config{
-				LogLevel: logrus.DebugLevel,
-				CliConfigurations: map[string]Cliconfig{
+				//LogLevel: logrus.DebugLevel,
+				CliConfigurations: map[string]CliConfig{
 					"redis-cli": {
 						CliPath: "/usr/local/bin/redis-cli",
 						FlagsConfig: FlagsConfig{
@@ -113,6 +127,13 @@ func TestLoadConfigV2(t *testing.T) {
 					},
 					"kubectl": {
 						CliPath: "/usr/local/bin/kubectl",
+						FlagsConfig: FlagsConfig{
+							Address: []string{"--server", "-s"},
+							SNI:     []string{"--tls-server-name"},
+						},
+					},
+					"oc": {
+						CliPath: "/usr/local/bin/oc",
 						FlagsConfig: FlagsConfig{
 							Address: []string{"--server", "-s"},
 							SNI:     []string{"--tls-server-name"},
@@ -151,9 +172,16 @@ func TestLoadConfigV2(t *testing.T) {
 							Name:         "kind-ctt",
 						},
 					},
+					"oc": {
+						{
+							TunnelServer: "linuxserver.io@localhost:2222",
+							OriginServer: "192.168.68.109:53077",
+							Name:         "oc-ctt",
+						},
+					},
 				},
 				SSHConfigurations: &SshConfig{
-					KeyPath: "/Users/odedpriva/playground/ctt/for-tests/scripts/id_rsa",
+					KeyPath: "for-tests/scripts/id_rsa",
 				},
 			},
 			environmentToSet: map[string]string{
@@ -174,7 +202,7 @@ func TestLoadConfigV2(t *testing.T) {
 			assert.Equal(t, tt.want.SSHConfigurations.KeyPath, got.SSHConfigurations.KeyPath)
 			assert.Equal(t, tt.want.CliConfigurations, got.CliConfigurations)
 			assert.Equal(t, tt.want.TunnelConfigurations, got.TunnelConfigurations)
-			assert.Equal(t, tt.want.LogLevel, got.LogLevel)
+			//assert.Equal(t, tt.want.LogLevel, got.LogLevel)
 		})
 	}
 }

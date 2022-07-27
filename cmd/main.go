@@ -2,17 +2,18 @@ package main
 
 import (
 	"fmt"
-	"github.com/odedpriva/cli-transparent-tunnel/cli/command/setup"
-	"github.com/odedpriva/cli-transparent-tunnel/cli/command/tunnel"
-	"github.com/odedpriva/cli-transparent-tunnel/logging"
-	"github.com/odedpriva/cli-transparent-tunnel/utils/args-utils"
+	"os"
+	"os/exec"
+
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
-	"golang.org/x/exp/maps"
-	"log"
-	"os"
 
+	"github.com/odedpriva/cli-transparent-tunnel/cli/command/setup"
+	"github.com/odedpriva/cli-transparent-tunnel/cli/command/tunnel"
 	"github.com/odedpriva/cli-transparent-tunnel/config"
+	"github.com/odedpriva/cli-transparent-tunnel/logging"
+	"github.com/odedpriva/cli-transparent-tunnel/utils/args-utils"
 )
 
 var debug bool
@@ -33,11 +34,17 @@ func main() {
 
 	_ = logging.NewLogger(level)
 
-	cttAllArgs, commandAllArgs := args_utils.SplitArgs(args, maps.Keys(conf.CliConfigurations))
+	cttAllArgs, commandAllArgs := args_utils.SplitArgs(args, conf.CliKeys())
 
-	ctt := &cli.App{
-		Name:  "ctt",
+	commands := []*cli.Command{
+		setup.NewSetupCmd().GetCommnad(),
+		tunnel.NewTunnelCmd(commandAllArgs, conf).GetCommnad(),
+	}
+
+	app := &cli.App{
+		Name:  "cli-transparent-tunnel",
 		Usage: "make a command run through an ssh tunnel",
+		Commands: commands,
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:        "debug",
@@ -48,12 +55,14 @@ func main() {
 		},
 	}
 
-	setupCmd := setup.NewSetupCmd()
-	tunnelCmd := tunnel.NewTunnelCmd(commandAllArgs, conf)
-	ctt.Commands = append(ctt.Commands, setupCmd.GetCommnad(), tunnelCmd.GetCommnad())
+	err = app.Run(cttAllArgs)
+	if err != nil {
+		var exErr *exec.ExitError
+		if errors.As(err, &exErr) {
+			logrus.WithError(err).Errorf("underlying process return %d", exErr.ExitCode())
+			os.Exit(exErr.ExitCode())
+		}
 
-	if err := ctt.Run(cttAllArgs); err != nil {
-		log.Fatal(err)
+		logrus.WithError(err).Fatal("Failed to run")
 	}
-
 }

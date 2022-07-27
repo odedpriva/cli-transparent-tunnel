@@ -1,13 +1,11 @@
 package kubectl
 
 import (
-	"fmt"
 	"github.com/alexflint/go-arg"
 	"github.com/odedpriva/cli-transparent-tunnel/config"
-	"k8s.io/client-go/tools/clientcmd"
-
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/exp/slices"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 )
 
@@ -19,16 +17,16 @@ type kubectlArgs struct {
 
 type KubeCtl struct {
 	log        *logrus.Logger
-	cliConfig  *config.KubeCtl
+	cliConfig  *config.CliConfig
 	osArgs     []string
 	parsedArgs kubectlArgs
 }
 
-func NewKubeCtl(ctl *config.KubeCtl, log *logrus.Logger, args []string) (*KubeCtl, error) {
+func NewKubeCtl(ctl *config.CliConfig, log *logrus.Logger, args []string) (*KubeCtl, error) {
 	parsedArgs := kubectlArgs{}
 
 	p, err := arg.NewParser(arg.Config{
-		IgnoreUnknownArgs: true,
+		//IgnoreUnknownArgs: true,
 	}, &parsedArgs)
 	if err != nil {
 		return nil, err
@@ -46,23 +44,11 @@ func NewKubeCtl(ctl *config.KubeCtl, log *logrus.Logger, args []string) (*KubeCt
 	}, nil
 }
 
-func (k *KubeCtl) GetTunnelConfiguration() (*config.TunnelConfiguration, error) {
-
-	if val, ok := config.IsTunnelConfigurationExist(k.getTunnelConfigurationName(), k.cliConfig.TunnelConfigurations); ok {
-
-		return &val, nil
-
-	}
-
-	return nil, nil
-
-}
-
-func (k *KubeCtl) GetCommandWithTunnel(tunnelAddress string, originalServer string) (string, []string) {
+func (k *KubeCtl) GetCommandWithTunnel(tunnelAddress string, originalServer string) (string, []string, error) {
 	cmd := k.cliConfig.CliPath
 	args := k.osArgs
 	args = append([]string{args[0], "--server", "https://" + tunnelAddress, "--tls-server-name", originalServer}, args[1:]...)
-	return cmd, args
+	return cmd, args, nil
 }
 
 func (k *KubeCtl) GetPlainCommand() (string, []string) {
@@ -78,14 +64,9 @@ func (k *KubeCtl) getTunnelConfigurationName() string {
 		return ""
 	}
 
-	if !slices.Contains(k.cliConfig.SupportedSubCommands, args[0]) {
-		k.log.Debugf("sub command %s not supported for tunnel %s", args[0], k.cliConfig.SupportedSubCommands)
-		return ""
-	}
-
 	kubeConfig, err := k.getKubeConfig()
 	if err != nil {
-		k.log.Errorf("ctt could not load kubeconfig file, %s", err)
+		k.log.WithError(err).Errorf("ctt could not load kubeconfig file")
 		return ""
 	}
 
@@ -101,7 +82,7 @@ func (k *KubeCtl) getKubeConfig() (*api.Config, error) {
 	if k.parsedArgs.Kubeconfig != "" {
 		c, err = clientcmd.LoadFromFile(k.parsedArgs.Kubeconfig)
 		if err != nil {
-			return nil, fmt.Errorf("error loading file %s %w", k.parsedArgs.Kubeconfig, err)
+			return nil, errors.Wrapf(err, "error loading file %s", k.parsedArgs.Kubeconfig)
 		}
 		return c, nil
 	}
@@ -119,7 +100,8 @@ func parseCommandLineArgs(args []string) (*kubectlArgs, error) {
 
 	parsedArgs := &kubectlArgs{}
 
-	p, err := arg.NewParser(arg.Config{IgnoreUnknownArgs: true}, parsedArgs)
+	//p, err := arg.NewParser(arg.Config{IgnoreUnknownArgs: true}, parsedArgs)
+	p, err := arg.NewParser(arg.Config{}, parsedArgs)
 	if err != nil {
 		return nil, err
 	}

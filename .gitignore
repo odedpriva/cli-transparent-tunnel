@@ -1,3 +1,5 @@
+.idea/
 dist/
 bin/
+vendor/
 for-tests/generated-config/

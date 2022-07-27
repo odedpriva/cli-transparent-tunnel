@@ -2,6 +2,7 @@ package setup
 
 import (
 	"fmt"
+
 	"github.com/urfave/cli/v2"
 )
 

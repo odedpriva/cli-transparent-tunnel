@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/alexflint/go-arg v1.4.3
+	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.7.1
@@ -58,5 +59,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
-
-replace github.com/alexflint/go-arg => github.com/odedpriva/go-arg v1.4.4-0.20220621121153-039a55ad7ac9

@@ -1,7 +1,8 @@
 package service
 
 import (
-	"fmt"
+	"github.com/pkg/errors"
+
 	"github.com/odedpriva/cli-transparent-tunnel/logging"
 
 	command_runner "github.com/odedpriva/cli-transparent-tunnel/command-runner"
@@ -9,24 +10,6 @@ import (
 	"github.com/odedpriva/cli-transparent-tunnel/mytypes"
 	"github.com/odedpriva/cli-transparent-tunnel/network_tunnler"
 )
-
-type ServiceError struct {
-	err     error
-	message string
-}
-
-func (s ServiceError) Error() string {
-	return fmt.Sprintf("%s %s", s.message, s.err)
-}
-
-type CommandError struct {
-	err     error
-	message string
-}
-
-func (c CommandError) Error() string {
-	return fmt.Sprintf("%s %s", c.message, c.err)
-}
 
 type Service struct {
 	command_tunneler.TunnelerCommand
@@ -59,13 +42,12 @@ func (s *Service) Run(input *RunInput) error {
 	go s.Start(input.SshEndpoint, input.ApplicationEndpoint.String())
 	localAddress, err := s.Wait()
 	if err != nil {
-		s.log.Errorf("failed creating local tunnel listener %s", err)
-		return ServiceError{err: err, message: fmt.Sprint("failed creating ssh tunnel")}
+		s.log.WithError(err).Errorf("failed creating local tunnel listener")
+		return errors.Wrap(err, "failed creating ssh tunnel")
 	}
 	command, args, err := s.GetCommandWithTunnel(localAddress, input.ApplicationEndpoint.String())
 	if err != nil {
 		return err
 	}
-	s.RunCommand(command, args)
-	return nil
+	return s.RunCommand(command, args)
 }

@@ -1,9 +1,10 @@
 package utils
 
 import (
-	"errors"
 	"os"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 func IsFileExists(name string) bool {

@@ -1,10 +1,11 @@
 package generic_command
 
 import (
+	"net"
+
 	"github.com/odedpriva/cli-transparent-tunnel/logging"
 	"github.com/odedpriva/cli-transparent-tunnel/mytypes"
 	args_utils "github.com/odedpriva/cli-transparent-tunnel/utils/args-utils"
-	"net"
 )
 
 type GenericCommand struct {
@@ -33,9 +34,10 @@ func (g *GenericCommand) GetCommandWithTunnel(tunnelAddress string, originalServ
 
 	builder := args_utils.NewArgsBuilder(g.args)
 	args := builder.
-		ReplaceOrAddArgForFlags(g.genericConfig.HostFlags, tunnelHost).
-		ReplaceOrAddArgForFlags(g.genericConfig.PortFlags, tunnelPort).
-		ReplaceOrAddArgForFlags(g.genericConfig.SNIFlags, originalHost).
+		ReplaceOrAddArgForFlags("host-flags", g.genericConfig.HostFlags, tunnelHost).
+		ReplaceOrAddArgForFlags("port-flags", g.genericConfig.PortFlags, tunnelPort).
+		ReplaceOrAddArgForFlags("sni-flags", g.genericConfig.SNIFlags, originalHost).
+		ReplaceOrAddArgForFlags("address-flags", g.genericConfig.AddressFlags, tunnelAddress).
 		Build()
 	return g.command, args.GetArgs(), nil
 

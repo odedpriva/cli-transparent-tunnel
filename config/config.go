@@ -1,10 +1,10 @@
 package config
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/spf13/viper"
 )
@@ -29,13 +29,13 @@ type FlagsConfig struct {
 	SNI     []string `mapstructure:"sni"`
 }
 
-type Cliconfig struct {
+type CliConfig struct {
 	CliPath     string      `mapstructure:"path"`
 	FlagsConfig FlagsConfig `mapstructure:"flags"`
 }
 
 type Config struct {
-	CliConfigurations    map[string]Cliconfig             `mapstructure:"commands-configuration"`
+	CliConfigurations    map[string]CliConfig             `mapstructure:"commands-configuration"`
 	TunnelConfigurations map[string][]TunnelConfiguration `mapstructure:"tunnel-configurations"`
 	SSHConfigurations    *SshConfig                       `mapstructure:"ssh-config"`
 }
@@ -84,12 +84,12 @@ func loadConfigFileV2(environment, configName string) error {
 		return viper.MergeInConfig()
 	}
 
-	return fmt.Errorf("failed loading config file")
+	return errors.New("failed loading config file")
 }
 
 func newConfig() *Config {
 	return &Config{
-		CliConfigurations:    map[string]Cliconfig{},
+		CliConfigurations:    map[string]CliConfig{},
 		TunnelConfigurations: map[string][]TunnelConfiguration{},
 		SSHConfigurations: &SshConfig{
 			KeyPath: "",
@@ -98,3 +98,11 @@ func newConfig() *Config {
 }
 
 
+func (c *Config) CliKeys() []string {
+	var keys []string
+	for k, _ := range c.TunnelConfigurations {
+		keys = append(keys, k)
+	}
+
+	return keys
+}

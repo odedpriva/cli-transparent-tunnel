@@ -17,5 +17,9 @@ configurations:
     - ssh-tunnel-server: linuxserver.io@localhost:2222
       origin-server: 192.168.68.109:53077
       name: kind-ctt
+  oc:
+    - ssh-tunnel-server: linuxserver.io@localhost:2222
+      origin-server: 192.168.68.109:53077
+      name: oc-ctt
 ssh-config:
-  key-path: /Users/odedpriva/playground/ctt/for-tests/scripts/id_rsa
+  key-path: for-tests/scripts/id_rsa

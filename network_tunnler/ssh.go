@@ -1,15 +1,15 @@
 package network_tunnler
 
 import (
-	"errors"
-	"fmt"
-	"github.com/odedpriva/cli-transparent-tunnel/logging"
 	"io"
 	"io/ioutil"
 	"net"
 
-	"github.com/odedpriva/cli-transparent-tunnel/mytypes"
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/odedpriva/cli-transparent-tunnel/logging"
+	"github.com/odedpriva/cli-transparent-tunnel/mytypes"
 )
 
 type SSHTunnel struct {
@@ -32,7 +32,7 @@ func NewSSHTunnel(c *mytypes.SshConfig) (*SSHTunnel, error) {
 	var err error
 	log := logging.GetLogger()
 	if c.KeyPath == "" {
-		return nil, fmt.Errorf("no auth method for ssh")
+		return nil, errors.New("no auth method for ssh")
 	}
 	log.Debugf("using ssh key %s", c.KeyPath)
 	auth, err = privateKeyFile(c.KeyPath)
@@ -70,7 +70,7 @@ func (t *SSHTunnel) Start(server *mytypes.NetworkEndpoint, originServer string) 
 	}
 	defer func() {
 		err = listener.Close()
-		t.log.Errorf("%s\n", err)
+		t.log.WithError(err).Errorf("failed closing listener")
 	}()
 	t.AddressChan <- listener.Addr().String()
 	for {
@@ -97,13 +97,13 @@ func (t *SSHTunnel) forward(localConn net.Conn, sshServer *mytypes.NetworkEndpoi
 	t.log.Debugf("using ssh configuration %+v", t.Config)
 	serverConn, err := ssh.Dial("tcp", sshServer.String(), t.Config)
 	if err != nil {
-		t.log.Errorf("server dial error: %s", err)
+		t.log.WithError(err).Errorf("server dial error")
 		return
 	}
 	t.log.Debugf("connected to %s (1 of 2)\n", sshServer.String())
 	remoteConn, err := serverConn.Dial("tcp", originServer)
 	if err != nil {
-		t.log.Errorf("remote dial error: %s", err)
+		t.log.WithError(err).Errorf("remote dial error")
 		return
 	}
 	t.log.Debugf("connected to %s (2 of 2)\n", originServer)
@@ -111,9 +111,9 @@ func (t *SSHTunnel) forward(localConn net.Conn, sshServer *mytypes.NetworkEndpoi
 		_, err := io.Copy(writer, reader)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				t.log.Infof("io.Copy error: %s", err)
+				t.log.WithError(err).Infof("io.Copy error")
 			}
-			t.log.Errorf("io.Copy error: %s", err)
+			t.log.WithError(err).Errorf("io.Copy error")
 		}
 	}
 	go copyConn(localConn, remoteConn)

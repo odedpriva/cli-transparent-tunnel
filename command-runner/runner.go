@@ -1,16 +1,15 @@
 package command_runner
 
 import (
-	"errors"
-	"github.com/odedpriva/cli-transparent-tunnel/logging"
 	"io"
-	"log"
 	"os"
 	"os/exec"
+
+	"github.com/odedpriva/cli-transparent-tunnel/logging"
 )
 
 type CommandRunner interface {
-	RunCommand(command string, args []string)
+	RunCommand(command string, args []string) error
 }
 type CommandRunnerImpl struct {
 	log *logging.Logging
@@ -21,46 +20,36 @@ func NewCommandRunnerImpl() *CommandRunnerImpl {
 	return &CommandRunnerImpl{log: log}
 }
 
-func (c *CommandRunnerImpl) RunCommand(command string, args []string) {
+func (c *CommandRunnerImpl) RunCommand(command string, args []string) error {
 	cmd := exec.Command(command, args...)
-	c.log.Debugf("%s", cmd.String())
+	c.log.Info(cmd.String())
 
 	stdout, err := cmd.StdoutPipe()
-	checkError(err)
+	if err != nil {
+		c.log.WithError(err).Fatal("failed to get the Stdout of the subprocess")
+	}
 	stderr, err := cmd.StderrPipe()
-	checkError(err)
+	if err != nil {
+		c.log.WithError(err).Fatal("failed to get the Stderr of the subprocess")
+	}
 
 	err = cmd.Start()
-	checkError(err)
-
-	defer func() {
-		var exerr *exec.ExitError
-		err = cmd.Wait()
-		if err != nil {
-			if errors.As(err, &exerr) {
-				os.Exit(exerr.ExitCode())
-			}
-			c.log.Errorf("error waiting for the command %s", err)
-			os.Exit(1)
-		}
-	}()
+	if err != nil {
+		c.log.WithError(err).Fatal("failed to start the subprocess")
+	}
 
 	go func() {
 		_, err = io.Copy(os.Stdout, stdout)
 		if err != nil {
-			c.log.Errorf("error copying to stdout %s", err)
+			c.log.WithError(err).Errorf("error copying to stdout")
 		}
 	}()
 	go func() {
 		_, err = io.Copy(os.Stderr, stderr)
 		if err != nil {
-			c.log.Errorf("error copying to stdout %s", err)
+			c.log.WithError(err).Errorf("error copying to stderr")
 		}
 	}()
-}
 
-func checkError(err error) {
-	if err != nil {
-		log.Fatalf("Error: %s", err)
-	}
+	return cmd.Wait()
 }

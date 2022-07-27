@@ -32,7 +32,8 @@ help: ## Display this help.
 integration-setup: build ## Setup the integration test openssh-server, kind
 	@./for-tests/ssh-server/setup.sh
 	@./for-tests/scripts/commands-setup.sh
-	@./for-tests/scripts/setup-ctt-config.sh
+	@./for-tests/scripts/setup-ctt-cli-config.sh
+	@./for-tests/scripts/setup-ctt-tunnel-config.sh
 
 
 integration-cleanup: ## Cleanup the integration
@@ -77,7 +78,7 @@ unit-test: ## Run Unit tests
 
 .DEFAULT: build
 build:  fmt vet lint ## Build manager binary.
-	go build -ldflags="-s -w -X ${PKG}.GitVersion=${GIT_TAG} -X ${PKG}.GitCommit=${GIT_COMMIT}" -o bin/ctt main.go
+	go build -ldflags="-s -w -X ${PKG}.GitVersion=${GIT_TAG} -X ${PKG}.GitCommit=${GIT_COMMIT}" -o bin/ctt cmd/main.go
 
 
 ##@ Release
