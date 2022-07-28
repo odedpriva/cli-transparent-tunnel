@@ -1,5 +1,5 @@
-ctt.yaml
-bin/*
-
-
+.idea/
 dist/
+bin/
+vendor/
+for-tests/generated-config/

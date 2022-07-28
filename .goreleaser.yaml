@@ -12,6 +12,7 @@ builds:
       - amd64
       - arm64
     binary: ctt
+    main: cmd/main.go
     id: ctt
     ldflags:
       - -s -w -X github.com/odedpriva/cli-transparent-tunnel/version.GitVersion={{.Version}} -X github.com/odedpriva/cli-transparent-tunnel/version.GitCommit={{.Commit}}

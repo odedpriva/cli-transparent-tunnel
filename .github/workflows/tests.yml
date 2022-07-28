@@ -1,0 +1,42 @@
+name: tests
+
+on:
+  push:
+    branches:
+      - '*'
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      -
+        name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+      -
+        name: run unit-tests
+        run: make unit-test
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+      - name: run integration-tests
+        run: make integration-tests
+        env:
+          CTT_TEST_BIN_DIR: ${{ github.workspace }}/bin
+          CTT_TEST_KUBECONFIG: ${{ github.workspace }}/for-tests/generated-config/k8s-config.yaml
+          CTT_TEST_CTT_TUNNEL_CONFIG: ${{ github.workspace }}/for-tests/generated-config/ctt-tunnel-configuration.yaml
+          CTT_TEST_CTT_CLI_CONFIG: ${{ github.workspace }}/for-tests/generated-config/ctt-cli-configuration.yaml

@@ -1,67 +1,151 @@
 # cli-transparent-tunnel 
 
-* CLI wrapper that:
-  * create a ssl tunnel -> run the command through the tunnel -> close the tunnel.
-  * basically it can act as an inline replacer fot the CLI 
-    * the wrapper check if there is a tunnel configured for the required endpoint, if it has:
-      * it adds the ssh tunnel flags to the CLI and invoke the command with all args.
-      * if not, it just invokes the CLI 
+## Introduction
 
-* THIS IS A WIP PROJECT, I believe it can solve accessing k8s clusters through ssh tunnel in certain scenarios such as CI / CD etc .
-* Let me know what you think.
+SSH tunneling is a great method of transporting arbitrary networking data over an encrypted SSH connection.
+It can be used to add 
+- encryption to legacy applications. 
+- access network servers behind an ssh bastion server 
+- and more .. 
 
-## supported CLIs:
-  - kubectl
+To do so, we need to create an SSH tunnel and point the local client to the tunnel's local port. 
 
+for examples, running psql command through a ssl tunnel
 
-[![demo](https://asciinema.org/a/3EG9Jckd4Oy3uKkQIHbdYgs5q.svg)](https://asciinema.org/a/3EG9Jckd4Oy3uKkQIHbdYgs5q?autoplay=1)
+```shell
+# open a tunnel in a one terminal 
+# make sure 3307 is not in use
+>> ssh -N -L 5432:my-bastion-server:5432 -p 22 <>USER>@<IP> 
 
-## install
+## run psql command in another terminal 
+>> psql -U username -h 127.0.0.1 -P 5432 -p password -f commands.sql 
+```
+
+I found it a bit tedious and a bit complicated for scenarios such as CI etc .  
+
+`ctt` allows you to prefix any supported command, the tool will preform all the heavy lifting of creating the tunnel and 
+adjusting the cli with the proper host and port.
+```shell
+>> ctt --tunnel-config psql-us psql -U username -p password -f commands.sql  
+
+psql -h 127.0.0.1 -P 65152 -U username -p password -f commands.sql 
+```
+
+## How
+
+`ctt` has 2 config files, one for tunnel configurations, and other for command config 
+
+e.g:
+
+cli-config
+```yaml
+commands-configuration:
+  redis-cli:
+    path: /usr/local/bin/redis-cli
+    flags:
+      host:
+        - -h
+      port:
+        - -p
+      sni:
+        - --sni
+  psql:
+    path: /usr/local/bin/psql
+    flags:
+      host:
+        - --host
+        - -h
+      port:
+        - -p
+        - --port
+  kubectl:
+    path: /usr/local/bin/kubectl
+    flags:
+      address:
+        - --server
+        - -s
+      sni:
+        - --tls-server-name
+  oc:
+    path: /usr/local/bin/oc
+    flags:
+      address:
+        - --server
+        - -s
+      sni:
+        - --tls-server-name
+```
+
+In theory, `ctt` should support any cli that allows passing endpoint using a flag.   
+
+tunnel-config
+```yaml
+configurations:
+  redis-cli:
+    - ssh-tunnel-server: my-user@eu-bastion:22
+      name: redis-eu
+      origin-server: redis:6379
+  psql:
+    - ssh-tunnel-server: my-user@us-bastion:22
+      origin-server: postgres:5432
+      name: psql-us
+  kubectl:
+    - ssh-tunnel-server: my-user@us-bastion:22
+      origin-server: k8s:443
+      name: k8s-us
+  oc:
+    - ssh-tunnel-server: my-user@us-bastion:22
+      origin-server: k8s:443
+      name: oc-conf
+ssh-config:
+  key-path: ~/ssh/id_rsa
+```
+
+## Installation
 
 ```shell
 >> brew tap odedpriva/ctt
 >> brew install ctt
 ```
-## Setup
 
-```shell 
->> ctt ctt-init # this will create a config file under ${HOME}/.ctt/config.yaml
-```
-* update config file with tunnel configuration. 
-* `ctt` creates tunnel only when the k8s cluster name equals the name of the tunnel configuration
-* `ctt` creates tunnel for supported subcommand only 
-
-* environment Variables
-
-| Variable      | Description | Default Value |
-|---------------|-------------|---------------|
-| CTT_LOG_LEVEL |             | panic         |
-| CTT_CONFIG    |             |               |
-
-## Using
-
-* to see the tool in action, I suggest setting up CTT_LOG_LEVEL to debug.
+## Usage
 
 ```shell
->> export CTT_LOG_LEVEL=debug
->> alias kubectl=ctt
->> kubectl get pods
-kubectl get pods
-DEBU[0000] using context docker-desktop
-DEBU[0000] using server docker-desktop
-DEBU[0000] using ssh key /Users/odedpriva/.ssh/secure-access-cloud-key.pem
-DEBU[0000] /usr/local/bin/kubectl --server https://127.0.0.1:65152 --tls-server-name kubernetes.docker.internal get pods
-DEBU[0000] accepted connection
-DEBU[0000] forwording connection on ssh tunnel kubernetes-docker-internal.tcp.symchatbotdemo.luminatesite.com:22
-DEBU[0000] using ssh configuration &{Config:{Rand:<nil> RekeyThreshold:0 KeyExchanges:[] Ciphers:[] MACs:[]} User:tcptunnel@kubernetes-docker-internal Auth:[0x2499ba0] HostKeyCallback:0x2498980 BannerCallback:<nil> ClientVersion: HostKeyAlgorithms:[] Timeout:0s}
-DEBU[0000] connected to kubernetes-docker-internal.tcp.symchatbotdemo.luminatesite.com:22 (1 of 2)
-DEBU[0001] connected to kubernetes.docker.internal:6443 (2 of 2)
-NAME                     READY   STATUS    RESTARTS   AGE
-nginx-6799fc88d8-p4l67   1/1     Running   0          42s
+NAME:
+   ctt - make a command run through an ssh tunnel
+
+USAGE:
+   ctt [global options] command [command options] [arguments...]
+
+COMMANDS:
+   setup
+   tunnel
+   help, h  Shows a list of commands or help for one command
+
+GLOBAL OPTIONS:
+   --debug     debug mode (default: false)
+   --help, -h  show help (default: false)
 ```
 
-## Caveats
+### tunnel
+```shell
+NAME:
+   ctt tunnel
 
-* Supports subset of kubectl subcommands listed in ${HOME}/.ctt/config.yaml
-* when aliasing, the shell completion is not working
+USAGE:
+   ctt tunnel [command options] command-to-tunnel [command-to-tunnel-options]
+
+OPTIONS:
+   --tunnel-config value  tunnel config name
+
+```
+
+## Setup
+
+TODO .. 
+
+
+
+
+
 
