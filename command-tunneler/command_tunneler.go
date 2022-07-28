@@ -1,6 +1,5 @@
 package command_tunneler
 
 type TunnelerCommand interface {
-	GetTunnelConfiguration() string
-	RunCommand(tunnelAddress string, originalServer string) ([]byte, error)
+	GetCommandWithTunnel(scheme, tunnelAddress string, originalServer string) (string, []string, error)
 }
