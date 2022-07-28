@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Config
+current-context: context1
+contexts:
+  - context:
+      cluster: cluster1
+      user: user1
+    name: context1
+  - context:
+      cluster: cluster2
+      user: user2
+    name: context2
+clusters:
+  - cluster:
+      certificate-authority-data: certificate1
+      server: https://any-string:6443
+    name: cluster1
+  - cluster:
+      certificate-authority-data: certificate2
+      server: https://ip
+    name: cluster2
+users:

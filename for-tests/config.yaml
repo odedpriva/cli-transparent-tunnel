@@ -1,12 +1,8 @@
 ssh-config:
   key-path: key-path
-kubectl:
-  path: path
-  eligible-subcommands:
-    - create
-  tunnel-configurations:
-    - c1:
-        ssh-client-user-name: ssh-client-user-name
-        ssh-client-host-name: ssh-client-host-name
-        target-machine: target-machine
-        target-port: target-port
+configurations:
+  kubectl:
+    - ssh-client-user-name: ssh-client-user-name
+      ssh-client-host-name: ssh-client-host-name
+      origin-server: target-machine:target-port
+      name: c1-ctt
